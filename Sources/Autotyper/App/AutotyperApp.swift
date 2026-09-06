@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item.button?.sendAction(on: [.leftMouseDown, .rightMouseDown])
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentSize = NSSize(width: 430, height: 510)
+        popover.contentSize = NSSize(width: 430, height: 450)
         popover.contentViewController = NSHostingController(rootView: ContentView(controller: controller, history: history))
         controller.onChange = { [weak self] in self?.updateStatus() }
         controller.onStart = { [weak self] in

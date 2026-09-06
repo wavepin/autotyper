@@ -12,10 +12,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 Image(systemName: "keyboard.badge.ellipsis").font(.system(size: 26)).foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Autotyper").font(.title2.weight(.semibold))
-                    Text("Your words, wherever you need them.").font(.caption).foregroundStyle(.secondary)
-                }
+                Text("Autotyper").font(.title2.weight(.semibold))
                 Spacer()
                 Menu {
                     Picker("Line breaks", selection: $controller.lineBreakMode) {
@@ -41,14 +38,8 @@ struct ContentView: View {
                 Text("History · \(history.entries.count)").tag(1)
             }.pickerStyle(.segmented).labelsHidden()
             if tab == 0 { composer } else { historyView }
-            Divider()
-            HStack {
-                Label("On this Mac only", systemImage: "lock.shield").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Text("Open ⌃⌥⌘T · Stop ⌃⌥⌘X").font(.caption2).foregroundStyle(.secondary)
-            }
         }
-        .padding(20).frame(width: 430, height: 510)
+        .padding(20).frame(width: 430, height: 450)
         .background(.regularMaterial)
         .alert("Clear all history?", isPresented: $clearConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -72,8 +63,9 @@ struct ContentView: View {
                     .padding(7)
                     .accessibilityLabel("Text to type")
                 if controller.text.isEmpty {
-                    Text("Type or paste anything…\nParagraphs, lists, symbols, emoji.")
-                        .foregroundStyle(.tertiary).font(.system(size: 13)).padding(12)
+                    Text("Type or paste anything…")
+                        .foregroundStyle(.tertiary).font(.system(size: 13))
+                        .padding(.top, 12).padding(.leading, 21)
                         .allowsHitTesting(false)
                 }
             }
@@ -120,7 +112,6 @@ struct ContentView: View {
     private var historyView: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Kept for \(history.days) days · up to 100 texts").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Clear all", role: .destructive) { clearConfirmation = true }
                     .buttonStyle(.borderless).disabled(history.entries.isEmpty)
@@ -151,8 +142,6 @@ struct ContentView: View {
                 }
             }
             Spacer(minLength: 0)
-            Text(history.enabled ? "Select an entry to use it again. History is stored locally, unencrypted." : "History saving is off. Existing entries still expire automatically.")
-                .font(.caption).foregroundStyle(.secondary)
         }.frame(maxHeight: .infinity)
     }
 }
