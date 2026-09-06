@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AutotyperCore
 
 struct ContentView: View {
     @Bindable var controller: TypingController
@@ -17,6 +18,10 @@ struct ContentView: View {
                 }
                 Spacer()
                 Menu {
+                    Picker("Line breaks", selection: $controller.lineBreakMode) {
+                        ForEach(LineBreakMode.allCases, id: \.self) { mode in Text(mode.title).tag(mode) }
+                    }
+                    Divider()
                     Toggle("Allow secure/password fields", isOn: $controller.allowSecureFields)
                     Divider()
                     Toggle("Save history locally", isOn: $history.enabled)
@@ -43,7 +48,7 @@ struct ContentView: View {
                 Text("Open ⌃⌥⌘T · Stop ⌃⌥⌘X").font(.caption2).foregroundStyle(.secondary)
             }
         }
-        .padding(20).frame(width: 430, height: 580)
+        .padding(20).frame(width: 430, height: 510)
         .background(.regularMaterial)
         .alert("Clear all history?", isPresented: $clearConfirmation) {
             Button("Cancel", role: .cancel) {}

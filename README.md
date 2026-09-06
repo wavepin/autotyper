@@ -24,9 +24,13 @@ Normal pace sends approximately 250 Unicode graphemes per second; actual speed
 includes OS and destination overhead. **Compatibility pace** uses approximately
 50 per second for slower fields. The delay and pace are remembered.
 
-Newlines, tabs, bullets, non-Latin text, and emoji are sent as Unicode, not
-physical Return/Tab keys. Literal `\n` and `\t` remain literal text. CRLF and CR
-line endings normalize to LF. The app does not append Return or press Submit.
+Line breaks use **Shift–Return** by default, which inserts new lines in common
+chat fields. Choose **Line breaks → Return (documents)** in the gear menu for
+editors that expect ordinary Return. Return can submit a chat or form, so choose
+the mode to match the destination. Single-line fields cannot accept multiple lines.
+Blank lines and trailing line breaks are preserved; CRLF and CR normalize to LF.
+Literal `\n` and `\t` remain literal text. Other characters, including tabs,
+bullets, non-Latin text, and emoji, are sent as Unicode. No extra Return is appended.
 It stops when the foreground app changes or a modifier key is held. Secure input
 and password fields are blocked by default. Enable **Allow secure/password fields**
 in the gear menu to attempt typing into them. macOS or the destination may still

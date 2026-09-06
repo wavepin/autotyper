@@ -10,6 +10,7 @@ struct AutotyperChecks {
         checks.testNewlineNormalization()
         checks.testExpiryAndOrdering()
         checks.testKeyboardEventEncoding()
+        checks.testMultilineEvents()
         print("PASS: Unicode round trips, long text, escapes, line endings, expiry, ordering, history cap, and CGEvent encoding.")
     }
     func expectEqual<T: Equatable>(_ lhs: T, _ rhs: T, file: StaticString = #file, line: UInt = #line) {
@@ -17,6 +18,25 @@ struct AutotyperChecks {
     }
     func expectTrue(_ value: Bool, file: StaticString = #file, line: UInt = #line) {
         precondition(value, "Condition failed", file: file, line: line)
+    }
+    func testMultilineEvents() {
+        let packets = TextPayload.events("Test\r\nwith\n\nlinebreak\n")
+        for mode in LineBreakMode.allCases {
+            let pairs = packets.map { KeyboardEvents.pair(units: $0, lineBreakMode: mode, source: nil)! }
+            let returns = pairs.filter { $0.down.getIntegerValueField(.keyboardEventKeycode) == 36 }
+            expectEqual(returns.count, 4)
+            for pair in returns {
+                expectEqual(pair.down.flags.contains(.maskShift), mode == .shiftReturn)
+                expectTrue(pair.up.flags.isEmpty)
+                var count = 0
+                var characters = [UInt16](repeating: 0, count: 20)
+                pair.down.keyboardGetUnicodeString(maxStringLength: 20, actualStringLength: &count, unicodeString: &characters)
+                expectEqual(Array(characters.prefix(count)), [13])
+            }
+            expectTrue(pairs.filter { $0.down.getIntegerValueField(.keyboardEventKeycode) == 0 }.allSatisfy { $0.down.flags.isEmpty })
+        }
+        let literal = TextPayload.events("\\n")
+        expectTrue(literal.allSatisfy { KeyboardEvents.pair(units: $0, lineBreakMode: .shiftReturn, source: nil)!.down.getIntegerValueField(.keyboardEventKeycode) == 0 })
     }
     func testKeyboardEventEncoding() {
         for units in TextPayload.events("A\n\t• 中文 👨‍👩‍👧‍👦 👍🏽") {

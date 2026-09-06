@@ -11,6 +11,7 @@ final class TypingController {
     var delay = 5 { didSet { UserDefaults.standard.set(delay, forKey: "startDelay") } }
     var gentle = false { didSet { UserDefaults.standard.set(gentle, forKey: "gentlePace") } }
     var allowSecureFields = false { didSet { UserDefaults.standard.set(allowSecureFields, forKey: "allowSecureFields") } }
+    var lineBreakMode: LineBreakMode = .shiftReturn { didSet { UserDefaults.standard.set(lineBreakMode.rawValue, forKey: "lineBreakMode") } }
     private(set) var phase: Phase = .idle
     var message = "Choose a delay, then place your cursor in the destination."
     var trusted = AXIsProcessTrusted()
@@ -22,6 +23,7 @@ final class TypingController {
     init() {
         let saved = UserDefaults.standard.integer(forKey: "startDelay")
         delay = [3, 5, 10, 15, 30].contains(saved) ? saved : 5
+        lineBreakMode = LineBreakMode(rawValue: UserDefaults.standard.string(forKey: "lineBreakMode") ?? "") ?? .shiftReturn
         gentle = UserDefaults.standard.bool(forKey: "gentlePace")
         allowSecureFields = UserDefaults.standard.bool(forKey: "allowSecureFields")
     }
@@ -41,6 +43,7 @@ final class TypingController {
         guard !payload.isEmpty else { return }
         let secureAllowed = allowSecureFields
         if !secureAllowed { history.add(text) }
+        let newlineMode = lineBreakMode
         let seconds = delay
         let interval: UInt64 = gentle ? 20_000_000 : 4_000_000
         setPhase(.countdown(seconds))
@@ -75,23 +78,17 @@ final class TypingController {
                     guard flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]).isEmpty else {
                         self.finish("Stopped because a modifier key was held. Release the keys and try again."); return
                     }
-                    guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
-                          let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else {
+                    guard let events = KeyboardEvents.pair(units: units, lineBreakMode: newlineMode, source: source) else {
                         self.finish("macOS could not create keyboard events."); return
                     }
-                    down.flags = []; up.flags = []
-                    units.withUnsafeBufferPointer { buffer in
-                        down.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
-                        up.keyboardSetUnicodeString(stringLength: buffer.count, unicodeString: buffer.baseAddress)
-                    }
-                    down.post(tap: .cghidEventTap)
-                    up.post(tap: .cghidEventTap)
+                    events.down.post(tap: .cghidEventTap)
+                    events.up.post(tap: .cghidEventTap)
                     let percent = (index + 1) * 100 / payload.count
                     if percent != lastPercent {
                         self.setPhase(.typing(index + 1, payload.count))
                         lastPercent = percent
                     }
-                    try await Task.sleep(nanoseconds: interval)
+                    try await Task.sleep(nanoseconds: units == [10] ? max(interval, 20_000_000) : interval)
                 }
                 self.finish("Finished sending text to \(target.localizedName ?? "the destination").")
             } catch { /* cancellation is handled synchronously by abort() */ }
