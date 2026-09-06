@@ -10,6 +10,7 @@ final class TypingController {
     var text = ""
     var delay = 5 { didSet { UserDefaults.standard.set(delay, forKey: "startDelay") } }
     var gentle = false { didSet { UserDefaults.standard.set(gentle, forKey: "gentlePace") } }
+    var allowSecureFields = false { didSet { UserDefaults.standard.set(allowSecureFields, forKey: "allowSecureFields") } }
     private(set) var phase: Phase = .idle
     var message = "Choose a delay, then place your cursor in the destination."
     var trusted = AXIsProcessTrusted()
@@ -22,20 +23,24 @@ final class TypingController {
         let saved = UserDefaults.standard.integer(forKey: "startDelay")
         delay = [3, 5, 10, 15, 30].contains(saved) ? saved : 5
         gentle = UserDefaults.standard.bool(forKey: "gentlePace")
+        allowSecureFields = UserDefaults.standard.bool(forKey: "allowSecureFields")
     }
 
     func requestPermission() {
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        trusted = AXIsProcessTrustedWithOptions(options)
+        refreshPermission()
+        if !trusted, let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
     func refreshPermission() { trusted = AXIsProcessTrusted() }
     func start(history: HistoryStore) {
         guard !busy, !text.isEmpty else { return }
         refreshPermission()
-        guard trusted else { requestPermission(); message = "Enable Autotyper in System Settings → Privacy & Security → Accessibility, then try again."; return }
+        guard trusted else { message = "Accessibility is not active for this build. Open Settings; if Autotyper is already enabled, remove its old entry and add this app again, then reopen Autotyper."; return }
         let payload = TextPayload.events(text)
         guard !payload.isEmpty else { return }
-        history.add(text)
+        let secureAllowed = allowSecureFields
+        if !secureAllowed { history.add(text) }
         let seconds = delay
         let interval: UInt64 = gentle ? 20_000_000 : 4_000_000
         setPhase(.countdown(seconds))
@@ -54,13 +59,15 @@ final class TypingController {
                     self.finish("No destination selected. Click a text field in another app and try again."); return
                 }
                 let pid = target.processIdentifier
+                self.setPhase(.typing(0, payload.count))
+                var lastPercent = -1
                 let source = CGEventSource(stateID: .privateState)
                 for (index, units) in payload.enumerated() {
                     try Task.checkCancellation()
                     guard AXIsProcessTrusted(), NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
                         self.finish("Stopped because the destination app or Accessibility permission changed."); return
                     }
-                    guard !IsSecureEventInputEnabled(), !self.focusIsSecure(pid: pid) else {
+                    guard secureAllowed || (!IsSecureEventInputEnabled() && !self.focusIsSecure(pid: pid)) else {
                         self.finish("Stopped: macOS secure input or a password field is active."); return
                     }
                     // Do not let held shortcut modifiers change emitted text.
@@ -79,7 +86,11 @@ final class TypingController {
                     }
                     down.post(tap: .cghidEventTap)
                     up.post(tap: .cghidEventTap)
-                    if index % 20 == 0 { self.setPhase(.typing(index + 1, payload.count)) }
+                    let percent = (index + 1) * 100 / payload.count
+                    if percent != lastPercent {
+                        self.setPhase(.typing(index + 1, payload.count))
+                        lastPercent = percent
+                    }
                     try await Task.sleep(nanoseconds: interval)
                 }
                 self.finish("Finished sending text to \(target.localizedName ?? "the destination").")
@@ -91,6 +102,9 @@ final class TypingController {
         operation?.cancel(); operation = nil
         finish("Cancelled. Text already typed remains in the destination.")
     }
+    #if DEBUG
+    func previewPhase(_ phase: Phase) { setPhase(phase) }
+    #endif
     private func finish(_ message: String) { self.message = message; setPhase(.idle) }
     private func setPhase(_ value: Phase) { phase = value; onChange?() }
     private func focusIsSecure(pid: pid_t) -> Bool {

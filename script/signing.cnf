@@ -1,0 +1,8 @@
+[ req ]
+distinguished_name = name
+x509_extensions = code_signing
+[ name ]
+[ code_signing ]
+basicConstraints = critical,CA:false
+keyUsage = critical,digitalSignature
+extendedKeyUsage = critical,codeSigning

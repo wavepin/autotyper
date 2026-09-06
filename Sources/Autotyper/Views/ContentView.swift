@@ -6,7 +6,6 @@ struct ContentView: View {
     @Bindable var history: HistoryStore
     @State private var tab = 0
     @State private var clearConfirmation = false
-    @FocusState private var editorFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -18,6 +17,8 @@ struct ContentView: View {
                 }
                 Spacer()
                 Menu {
+                    Toggle("Allow secure/password fields", isOn: $controller.allowSecureFields)
+                    Divider()
                     Toggle("Save history locally", isOn: $history.enabled)
                     Picker("Keep history for", selection: $history.days) {
                         ForEach([1, 3, 7, 14, 30], id: \.self) { days in Text("\(days) days").tag(days) }
@@ -44,7 +45,6 @@ struct ContentView: View {
         }
         .padding(20).frame(width: 430, height: 580)
         .background(.regularMaterial)
-        .onAppear { editorFocused = true }
         .alert("Clear all history?", isPresented: $clearConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Clear History", role: .destructive) { history.clear() }
@@ -63,9 +63,8 @@ struct ContentView: View {
                     .buttonStyle(.borderless).help("Clear composer").disabled(controller.text.isEmpty)
             }
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $controller.text)
-                    .font(.system(size: 13)).scrollContentBackground(.hidden)
-                    .padding(7).focused($editorFocused)
+                PlainTextEditor(text: $controller.text)
+                    .padding(7)
                     .accessibilityLabel("Text to type")
                 if controller.text.isEmpty {
                     Text("Type or paste anything…\nParagraphs, lists, symbols, emoji.")
@@ -88,9 +87,12 @@ struct ContentView: View {
                     ForEach([3, 5, 10, 15, 30], id: \.self) { Text("\($0)s").tag($0) }
                 }.pickerStyle(.segmented).labelsHidden()
             }
+            if controller.allowSecureFields {
+                Text("Secure-field typing is on · history is skipped for this run.").font(.caption).foregroundStyle(.secondary)
+            }
             if !controller.trusted {
                 Button { controller.requestPermission() } label: {
-                    Label("Enable Accessibility to type", systemImage: "hand.raised")
+                    Label("Open Accessibility Settings", systemImage: "hand.raised")
                 }.buttonStyle(.borderless)
             }
             if let error = history.error { Text(error).font(.caption).foregroundStyle(.red) }
@@ -127,7 +129,7 @@ struct ContentView: View {
                         ForEach(history.entries) { entry in
                             HStack(alignment: .top, spacing: 10) {
                                 Button {
-                                    controller.text = entry.text; tab = 0; editorFocused = true
+                                    controller.text = entry.text; tab = 0
                                 } label: {
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(entry.text).lineLimit(2).multilineTextAlignment(.leading).foregroundStyle(.primary)

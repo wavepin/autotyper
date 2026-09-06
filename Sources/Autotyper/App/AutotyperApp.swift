@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var item: NSStatusItem!
     private let popover = NSPopover()
     private var maintenance: Timer?
+    private var permissionPoll: Timer?
     private var previousApp: NSRunningApplication?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -45,9 +46,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         maintenance = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.history.prune() }
         }
+        permissionPoll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.popover.isShown else { return }
+                self.controller.refreshPermission()
+            }
+        }
         updateStatus()
         show()
         #if DEBUG
+        if let index = CommandLine.arguments.firstIndex(of: "--diagnostics"), CommandLine.arguments.count > index + 1 {
+            let originalMessage = controller.message
+            controller.previewPhase(.typing(37, 100))
+            let progressVisible = item.button?.title == " 37%"
+            controller.previewPhase(.typing(100, 100))
+            let completionVisible = item.button?.title == " 100%"
+            item.button?.performClick(nil)
+            let clickAborts = !controller.busy
+            controller.message = originalMessage
+            DevelopmentChecks.run(to: CommandLine.arguments[index + 1], statusChecks: ["percentageVisible": progressVisible, "hundredPercentVisible": completionVisible, "statusClickAborts": clickAborts])
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.count > index + 1 {
             let path = CommandLine.arguments[index + 1]
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
@@ -93,6 +111,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
+        DispatchQueue.main.async { [weak self] in
+            guard let view = self?.popover.contentViewController?.view else { return }
+            @MainActor func findEditor(_ view: NSView) -> NSTextView? {
+                if let editor = view as? NSTextView { return editor }
+                return view.subviews.lazy.compactMap { findEditor($0) }.first
+            }
+            if let editor = findEditor(view) { view.window?.makeFirstResponder(editor) }
+        }
     }
     private func updateStatus() {
         guard let button = item.button else { return }
