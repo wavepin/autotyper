@@ -9,14 +9,14 @@ final class TypingController {
     enum Phase: Equatable { case idle, countdown(Int), typing(Int, Int) }
     var text = ""
     var delay = 5 { didSet { UserDefaults.standard.set(delay, forKey: "startDelay") } }
-    var gentle = false { didSet { UserDefaults.standard.set(gentle, forKey: "gentlePace") } }
     var allowSecureFields = false { didSet { UserDefaults.standard.set(allowSecureFields, forKey: "allowSecureFields") } }
     var lineBreakMode: LineBreakMode = .shiftReturn { didSet { UserDefaults.standard.set(lineBreakMode.rawValue, forKey: "lineBreakMode") } }
     private(set) var phase: Phase = .idle
-    var message = "Choose a delay, then place your cursor in the destination."
+    var message = ""
     var trusted = AXIsProcessTrusted()
     var onChange: (() -> Void)?
     var onStart: (() -> Void)?
+    private var targetName: String?
     private var operation: Task<Void, Never>?
     var busy: Bool { phase != .idle }
 
@@ -24,7 +24,6 @@ final class TypingController {
         let saved = UserDefaults.standard.integer(forKey: "startDelay")
         delay = [3, 5, 10, 15, 30].contains(saved) ? saved : 5
         lineBreakMode = LineBreakMode(rawValue: UserDefaults.standard.string(forKey: "lineBreakMode") ?? "") ?? .shiftReturn
-        gentle = UserDefaults.standard.bool(forKey: "gentlePace")
         allowSecureFields = UserDefaults.standard.bool(forKey: "allowSecureFields")
     }
 
@@ -45,7 +44,8 @@ final class TypingController {
         if !secureAllowed { history.add(text) }
         let newlineMode = lineBreakMode
         let seconds = delay
-        let interval: UInt64 = gentle ? 20_000_000 : 4_000_000
+        let interval: UInt64 = 4_000_000
+        targetName = nil
         setPhase(.countdown(seconds))
         message = "Place your cursor now. Click the menu bar icon or press ⌃⌥⌘X to cancel."
         onStart?()
@@ -61,6 +61,7 @@ final class TypingController {
                       target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
                     self.finish("No destination selected. Click a text field in another app and try again."); return
                 }
+                self.targetName = target.localizedName ?? "the destination"
                 let pid = target.processIdentifier
                 self.setPhase(.typing(0, payload.count))
                 var lastPercent = -1
@@ -97,12 +98,19 @@ final class TypingController {
     func abort() {
         guard busy else { return }
         operation?.cancel(); operation = nil
-        finish("Cancelled. Text already typed remains in the destination.")
+        if case .countdown = phase {
+            finish("Aborted countdown.")
+        } else {
+            finish("Aborted typing in \(targetName ?? "the destination").")
+        }
     }
     #if DEBUG
-    func previewPhase(_ phase: Phase) { setPhase(phase) }
+    func previewPhase(_ phase: Phase, targetName: String? = nil) {
+        if let targetName { self.targetName = targetName }
+        setPhase(phase)
+    }
     #endif
-    private func finish(_ message: String) { self.message = message; setPhase(.idle) }
+    private func finish(_ message: String) { self.message = message; targetName = nil; setPhase(.idle) }
     private func setPhase(_ value: Phase) { phase = value; onChange?() }
     private func focusIsSecure(pid: pid_t) -> Bool {
         let app = AXUIElementCreateApplication(pid)

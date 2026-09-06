@@ -57,14 +57,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         #if DEBUG
         if let index = CommandLine.arguments.firstIndex(of: "--diagnostics"), CommandLine.arguments.count > index + 1 {
             let originalMessage = controller.message
-            controller.previewPhase(.typing(37, 100))
+            controller.previewPhase(.typing(37, 100), targetName: "Test Editor")
             let progressVisible = item.button?.title == " 37%"
             controller.previewPhase(.typing(100, 100))
             let completionVisible = item.button?.title == " 100%"
             item.button?.performClick(nil)
             let clickAborts = !controller.busy
+            let abortNamesTarget = controller.message == "Aborted typing in Test Editor."
             controller.message = originalMessage
-            DevelopmentChecks.run(to: CommandLine.arguments[index + 1], statusChecks: ["percentageVisible": progressVisible, "hundredPercentVisible": completionVisible, "statusClickAborts": clickAborts])
+            DevelopmentChecks.run(to: CommandLine.arguments[index + 1], statusChecks: ["percentageVisible": progressVisible, "hundredPercentVisible": completionVisible, "statusClickAborts": clickAborts, "abortNamesTarget": abortNamesTarget])
         }
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.count > index + 1 {
             let path = CommandLine.arguments[index + 1]

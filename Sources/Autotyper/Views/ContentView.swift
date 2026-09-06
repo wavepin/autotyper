@@ -54,7 +54,12 @@ struct ContentView: View {
                 Spacer()
                 Button {
                     if let text = NSPasteboard.general.string(forType: .string) { controller.text = text }
-                } label: { Label("Paste", systemImage: "clipboard") }.buttonStyle(.borderless)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clipboard")
+                        Text("Paste")
+                    }
+                }.buttonStyle(.borderless).padding(.trailing, 8)
                 Button { controller.text = "" } label: { Image(systemName: "xmark.circle") }
                     .buttonStyle(.borderless).help("Clear composer").disabled(controller.text.isEmpty)
             }
@@ -72,12 +77,7 @@ struct ContentView: View {
             .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
             .frame(minHeight: 130)
-            HStack {
-                Text("\(controller.text.count.formatted()) characters").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Toggle("Compatibility pace", isOn: $controller.gentle).toggleStyle(.checkbox).font(.caption)
-                    .help("50 characters/second for slower apps. Default: about 250/second.")
-            }
+            Text("\(controller.text.count.formatted()) characters").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Text("Start after").font(.subheadline)
                 Picker("Start delay", selection: $controller.delay) {
@@ -93,7 +93,9 @@ struct ContentView: View {
                 }.buttonStyle(.borderless)
             }
             if let error = history.error { Text(error).font(.caption).foregroundStyle(.red) }
-            Text(controller.message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if !controller.message.isEmpty {
+                Text(controller.message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             Button {
                 if controller.busy { controller.abort() } else { controller.start(history: history) }
             } label: {
@@ -139,6 +141,7 @@ struct ContentView: View {
                             Divider()
                         }
                     }
+                    .padding(.trailing, 18)
                 }
             }
             Spacer(minLength: 0)

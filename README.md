@@ -21,8 +21,7 @@ Global shortcuts:
 - **⌃⌥⌘X**: cancel without opening the composer.
 
 Normal pace sends approximately 250 Unicode graphemes per second; actual speed
-includes OS and destination overhead. **Compatibility pace** uses approximately
-50 per second for slower fields. The delay and pace are remembered.
+includes OS and destination overhead. The delay is remembered.
 
 Line breaks use **Shift–Return** by default, which inserts new lines in common
 chat fields. Choose **Line breaks → Return (documents)** in the gear menu for
