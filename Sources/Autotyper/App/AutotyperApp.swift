@@ -28,21 +28,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.contentSize = NSSize(width: 430, height: 450)
-        popover.contentViewController = NSHostingController(rootView: ContentView(controller: controller, history: history))
+        popover.contentViewController = NSHostingController(rootView: ContentView(controller: controller, history: history, shortcuts: shortcuts))
         controller.onChange = { [weak self] in self?.updateStatus() }
         controller.onStart = { [weak self] in
             guard let self else { return }
             self.popover.performClose(nil)
             self.previousApp?.activate(options: [])
         }
-        shortcuts.action = { [weak self] id in
-            guard let self else { return }
-            if id == 2 { self.controller.abort() }
-            else if self.controller.busy { self.controller.abort(); self.show() }
+        shortcuts.action = { [weak self] in
+            guard let self, self.popover.contentViewController?.view.window?.attachedSheet == nil else { return }
+            if self.controller.busy { self.controller.abort(); self.show() }
             else { self.toggle() }
         }
+        let shortcutUnavailable = "App shortcut unavailable. Choose another in the gear menu. You can still use the menu bar."
+        shortcuts.onChange = { [weak self] in
+            guard let self else { return }
+            if self.controller.message == shortcutUnavailable { self.controller.message = "" }
+            self.updateStatus()
+        }
         shortcuts.register()
-        if !shortcuts.available { controller.message = "A shortcut is already in use. You can still open and stop Autotyper from the menu bar." }
+        if shortcuts.shortcut != nil && !shortcuts.available { controller.message = shortcutUnavailable }
         maintenance = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.history.prune() }
         }
@@ -55,7 +60,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateStatus()
         show()
         #if DEBUG
+        if let index = CommandLine.arguments.firstIndex(of: "--shortcut-checks"), CommandLine.arguments.count > index + 1 {
+            DevelopmentChecks.runShortcutChecks(to: CommandLine.arguments[index + 1])
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--diagnostics"), CommandLine.arguments.count > index + 1 {
+            popover.animates = false
             let originalMessage = controller.message
             controller.previewPhase(.typing(37, 100), targetName: "Test Editor")
             let progressVisible = item.button?.title == " 37%"
@@ -64,14 +73,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             item.button?.performClick(nil)
             let clickAborts = !controller.busy
             let abortNamesTarget = controller.message == "Aborted typing in Test Editor."
+            controller.previewPhase(.countdown(5))
+            shortcuts.action?()
+            let shortcutCancelsCountdown = !controller.busy && popover.isShown
+            shortcuts.action?()
+            let shortcutCloses = !popover.isShown
+            shortcuts.action?()
+            let shortcutOpens = popover.isShown
+            controller.previewPhase(.typing(1, 100), targetName: "Test Editor")
+            shortcuts.action?()
+            let shortcutCancelsTyping = !controller.busy && popover.isShown
             controller.message = originalMessage
-            DevelopmentChecks.run(to: CommandLine.arguments[index + 1], statusChecks: ["percentageVisible": progressVisible, "hundredPercentVisible": completionVisible, "statusClickAborts": clickAborts, "abortNamesTarget": abortNamesTarget])
+            DevelopmentChecks.run(to: CommandLine.arguments[index + 1], statusChecks: ["shortcutCancelsCountdown": shortcutCancelsCountdown, "shortcutCloses": shortcutCloses, "shortcutOpens": shortcutOpens, "shortcutCancelsTyping": shortcutCancelsTyping, "percentageVisible": progressVisible, "hundredPercentVisible": completionVisible, "statusClickAborts": clickAborts, "abortNamesTarget": abortNamesTarget])
         }
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.count > index + 1 {
             let path = CommandLine.arguments[index + 1]
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                guard let view = self?.popover.contentViewController?.view,
-                      let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+                guard let rootView = self?.popover.contentViewController?.view else { return }
+                let view = rootView.window?.attachedSheet?.contentView ?? rootView
+                guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
                 view.cacheDisplay(in: view.bounds, to: bitmap)
                 try? bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
             }
@@ -128,17 +148,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .idle:
             button.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Autotyper")
             button.title = ""
-            button.toolTip = "Autotyper · Open ⌃⌥⌘T"
+            button.toolTip = shortcuts.shortcut.map { "Autotyper · Open \($0.title)" } ?? "Autotyper"
         case .countdown(let seconds):
             button.image = NSImage(systemSymbolName: "timer", accessibilityDescription: "Countdown")
             button.title = " \(seconds)s"
-            button.toolTip = "Click to cancel countdown · ⌃⌥⌘X"
+            button.toolTip = "Click to cancel countdown"
         case .typing(let sent, let total):
             button.image = NSImage(systemSymbolName: "stop.circle.fill", accessibilityDescription: "Stop typing")
             button.title = " \(Int(Double(sent) / Double(total) * 100))%"
-            button.toolTip = "Typing · Click to stop immediately · ⌃⌥⌘X"
+            button.toolTip = "Typing · Click or hold a modifier key to stop"
         }
         button.imagePosition = .imageLeading
     }
-    func applicationWillTerminate(_ notification: Notification) { controller.abort() }
+    func applicationWillTerminate(_ notification: Notification) { controller.abort(); shortcuts.stop() }
 }

@@ -5,6 +5,12 @@ import AutotyperCore
 struct ContentView: View {
     @Bindable var controller: TypingController
     @Bindable var history: HistoryStore
+    var shortcuts: GlobalShortcuts
+    #if DEBUG
+    @State private var shortcutSettings = CommandLine.arguments.contains("--shortcut-settings")
+    #else
+    @State private var shortcutSettings = false
+    #endif
     @State private var tab = 0
     @State private var clearConfirmation = false
 
@@ -26,8 +32,7 @@ struct ContentView: View {
                         ForEach([1, 3, 7, 14, 30], id: \.self) { days in Text("\(days) days").tag(days) }
                     }
                     Divider()
-                    Text("Open: ⌃⌥⌘T")
-                    Text("Stop: ⌃⌥⌘X")
+                    Button("App Shortcut…") { shortcutSettings = true }
                     Divider()
                     Button("Quit Autotyper") { NSApp.terminate(nil) }.keyboardShortcut("q")
                 } label: { Image(systemName: "gearshape") }
@@ -41,6 +46,7 @@ struct ContentView: View {
         }
         .padding(20).frame(width: 430, height: 450)
         .background(.regularMaterial)
+        .sheet(isPresented: $shortcutSettings) { ShortcutSettingsView(shortcuts: shortcuts) }
         .alert("Clear all history?", isPresented: $clearConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Clear History", role: .destructive) { history.clear() }

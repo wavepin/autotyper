@@ -1,10 +1,50 @@
 #if DEBUG
 import AppKit
 import ApplicationServices
+import Carbon
 import AutotyperCore
 
 @MainActor
 enum DevelopmentChecks {
+    static func runShortcutChecks(to path: String) {
+        let data = shortcutChecks()
+        try? JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted, .sortedKeys]).write(to: URL(fileURLWithPath: path))
+    }
+
+    private static func shortcutChecks() -> [String: Bool] {
+        let suite = "local.autotyper.shortcut-checks." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let candidate = AppShortcut(keyCode: UInt32(kVK_F12), modifiers: UInt32(controlKey | optionKey | cmdKey | shiftKey), keyLabel: "F12")
+        defaults.set(try! JSONEncoder().encode(candidate), forKey: "appShortcut")
+        let first = GlobalShortcuts(defaults: defaults)
+        first.register()
+        defer { first.stop() }
+        let second = GlobalShortcuts(defaults: defaults)
+        second.register()
+        defer { second.stop() }
+        let conflict = !second.available && first.available
+        let replacement = AppShortcut(keyCode: UInt32(kVK_F11), modifiers: candidate.modifiers, keyLabel: "F11")
+        let rebound = first.rebind(replacement)
+        let persisted = GlobalShortcuts(defaults: defaults).shortcut == replacement
+        let secondRegistered = second.rebind(candidate)
+        let conflictPreserves = secondRegistered && !first.rebind(candidate) && first.shortcut == replacement && first.available
+        let invalid = !first.rebind(AppShortcut(keyCode: 0, modifiers: 0, keyLabel: "A")) && first.shortcut == replacement
+        first.clear()
+        let cleared = first.shortcut == nil && !first.available
+        let reloaded = GlobalShortcuts(defaults: defaults)
+        reloaded.register()
+        let staysDisabled = reloaded.shortcut == nil && !reloaded.available
+        reloaded.stop()
+        let released = second.rebind(replacement)
+        let canReenable = first.rebind(candidate)
+        first.stop()
+        let restored = first.shortcut == candidate
+        return ["shortcutClear": cleared, "shortcutDisabledPersists": staysDisabled, "shortcutClearReleasesKey": released, "shortcutReenable": canReenable, "shortcutRegistration": rebound, "shortcutConflict": conflict,
+                "shortcutPersistence": persisted, "shortcutConflictPreservesBinding": conflictPreserves,
+                "shortcutRejectsUnmodifiedKey": invalid, "shortcutStopPreservesPreference": restored]
+    }
+
     static func run(to path: String, statusChecks: [String: Bool]) {
         let editor = ProbeEditor(frame: NSRect(x: 0, y: 0, width: 300, height: 120))
         editor.string = "Hello 👋 world"
@@ -41,6 +81,7 @@ enum DevelopmentChecks {
             "plainPasteRouting": pasted, "unrelatedShortcutPassesThrough": unrelatedPassesThrough,
             "accessibilityTrusted": AXIsProcessTrusted(), "bundlePath": Bundle.main.bundlePath
         ]
+        for (key, value) in shortcutChecks() { data[key] = value }
         data["multilineActual"] = multilineActual
         for (key, value) in multilineChecks { data[key] = value }
         for (key, value) in statusChecks { data[key] = value }

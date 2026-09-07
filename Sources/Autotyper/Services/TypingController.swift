@@ -47,7 +47,7 @@ final class TypingController {
         let interval: UInt64 = 4_000_000
         targetName = nil
         setPhase(.countdown(seconds))
-        message = "Place your cursor now. Click the menu bar icon or press ⌃⌥⌘X to cancel."
+        message = "Place your cursor now. Click the menu bar icon or use the app shortcut to cancel."
         onStart?()
         operation = Task { [weak self] in
             guard let self else { return }

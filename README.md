@@ -13,7 +13,8 @@ Write or paste your text, choose a delay, and place your cursor where you want i
 - Countdown presets: 3, 5, 10, 15, or 30 seconds.
 - Fast typing with support for multiple lines, emoji, and special characters.
 - Countdown and typing progress in the menu bar.
-- Stop immediately by clicking the menu bar icon or using a keyboard shortcut.
+- Stop typing by clicking the menu bar icon or holding Command, Control, Option, or Shift.
+- One customizable global shortcut to open or close the app and cancel a running operation.
 - Local text history with reuse, individual deletion, and automatic expiry.
 - Optional typing into password fields, with history saving skipped for those runs.
 
@@ -23,9 +24,9 @@ Requires **macOS 14 or later**. Supports **Intel and Apple silicon**.
 
 ### Download
 
-Download [Autotyper 1.0.0](https://github.com/wavepin/autotyper/releases/download/v1.0.0/Autotyper-1.0.0-universal.zip), unzip it, and move **Autotyper.app** to your **Applications** folder. Then open it and follow the setup steps below. The same download runs on Intel and Apple silicon.
+Download [Autotyper 1.0.1](https://github.com/wavepin/autotyper/releases/download/v1.0.1/Autotyper-1.0.1-universal.zip), unzip it, and move **Autotyper.app** to your **Applications** folder. Then open it and follow the setup steps below. The same download runs on Intel and Apple silicon.
 
-Downloads require access to this private repository. See [Releases](https://github.com/wavepin/autotyper/releases) for release notes and checksums.
+See [Releases](https://github.com/wavepin/autotyper/releases) for release notes and checksums.
 
 ### Build from source
 
@@ -57,9 +58,12 @@ Leave the cursor in that field until typing finishes. Click the menu bar icon to
 
 | Action | Shortcut |
 | --- | --- |
-| Open or close Autotyper | Control–Option–Command–T |
-| Stop typing or cancel the countdown | Control–Option–Command–X |
+| Open or close Autotyper; cancel a running countdown or typing and open the app | Control–Option–Command–T (default) |
 | Start countdown from the composer | Command–Return |
+
+Change the global shortcut in **gear menu → App Shortcut…**. Click the current shortcut and press a new combination containing Command, Control, or Option. Escape cancels recording; **Restore Default** returns to Control–Option–Command–T. Click the **X** beside the shortcut to clear it and use Autotyper without a global shortcut. Your binding or disabled state is saved across launches. If a combination is unavailable, your previous shortcut remains active.
+
+Holding **Command, Control, Option, or Shift** cancels typing, including when you begin pressing the app shortcut. Modifier keys alone do not cancel the countdown; use the app shortcut or click the menu bar icon.
 
 Line breaks use **Shift–Return** by default for chat fields. For document editors, choose **Line breaks → Return (documents)** in the gear menu. Ordinary Return may submit a chat message. Some apps and protected fields may not accept automated input.
 
