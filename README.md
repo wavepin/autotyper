@@ -21,7 +21,13 @@ Write or paste your text, choose a delay, and place your cursor where you want i
 
 Requires **macOS 14 or later**. Supports **Intel and Apple silicon**.
 
-There is no packaged download yet. Build the app from source:
+### Download
+
+Download [Autotyper 1.0.0](https://github.com/wavepin/autotyper/releases/download/v1.0.0/Autotyper-1.0.0-universal.zip), unzip it, and move **Autotyper.app** to your **Applications** folder. Then open it and follow the setup steps below. The same download runs on Intel and Apple silicon.
+
+Downloads require access to this private repository. See [Releases](https://github.com/wavepin/autotyper/releases) for release notes and checksums.
+
+### Build from source
 
 1. Install Apple Command Line Tools with `xcode-select --install`. You'll need Swift 6 or later, Python 3, and OpenSSL available in your terminal.
 2. Clone the repository and build:
