@@ -78,3 +78,7 @@ History is stored unencrypted on your Mac. Saving is skipped whenever secure-fie
 **Accessibility is enabled, but typing will not start:** remove the old Autotyper entry in Accessibility Settings, add the current `dist/Autotyper.app`, enable it, and reopen the app.
 
 **macOS warns about the app:** builds are signed for local use, not notarized for public distribution. If needed, use **Privacy & Security → Open Anyway** for a build you trust.
+
+## License
+
+Autotyper is available under the [MIT License](LICENSE).
